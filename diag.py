@@ -1,5 +1,3 @@
-__author__ = 'Tillsten'
-
 import sympy
 #from itertools import accumulate
 
@@ -43,6 +41,11 @@ def draw_arrows(pos, side, direction, om):
         plt.text(side - dx, npos + dy / 3., txt, fontsize=20,
             horizontalalignment='center')
 
+def mult_str(l):
+    l=map(lambda x: x+'*', l)
+    return l
+
+
 
 class FeyDiag(object):
     """Feynman diagramm of non-linear optics"""
@@ -78,13 +81,24 @@ class FeyDiag(object):
         Prints out the formula resulting of the interactions.
         All in the impulsive limit.
         """
-        initial_pop = r'\rho_{%s%s}' % (self.start_state, self.start_state)
+        initial_pop = r'\rho_{%s%s}' % (greek_letters[self.start_state], greek_letters[self.start_state])
         left_tdms = [r'\mu_{%s}' % i[1] for i in self.left]
         right_tdms = [r'\mu_{%s}' % i[1] for i in self.right]
         return r'${0:>s}{1:>s}{2:>s}{3:>s}{4:>s}$'.format(
             str(self.count_right()), ''.join(left_tdms), initial_pop,
             ''.join(right_tdms), ''.join(self.propagators()))
 
+    def formula_notex(self):
+        from sympy.parsing.sympy_parser import parse_expr
+        propagators = []
+        for  i, (om, trans, direction, side) in enumerate(self.interactions):
+            s = r'exp(-i*omega_%s*tau_%s)' % (trans, str(i))
+            propagators.append(s)
+        initial_pop = [r'p_%s%s' % (self.start_state, self.start_state)]
+        left_tdms = [r'mu_%s' % i[1] for i in self.left]
+        right_tdms = [r'mu_%s' % i[1] for i in self.right]
+        f = initial_pop + left_tdms + right_tdms + propagators[:-1]
+        return f
     def resonace_term(self):
         occured = []
         terms = []
@@ -118,7 +132,7 @@ class FeyDiag(object):
             pos += 1
 
 
-feynman = FeyDiag(start_state=r'\alpha',
+feynman = FeyDiag(start_state=r'a',
     interactions=[('pu', 'ab', 'in', 0), ('pu', 'ab', 'in', 1),
                   ('pr', 'ba', 'out', 1), ('sig', 'ba', 'out', 0)])
 
@@ -129,5 +143,16 @@ formula = feynman.formula()
 
 #display(disp.Math(formula))
 feynman.draw()
-plt.show()
+f=feynman.formula_notex()
 
+from sympy.parsing.sympy_parser import parse_expr
+f=feynman.formula_notex()
+f=mult_str(f)
+e =parse_expr(''.join(f)[:-1])
+e.simplify()
+
+e=e.subs('mu_ba','mu_ab')
+e=e.subs('omega_ba','omega_ab')
+e=e.subs('omega_ab','(epsilon_b-epsilon_a)/hbar-i/Gamma_ab')
+
+e=e.subs([('tau_0','0'),('tau_1',0)])
