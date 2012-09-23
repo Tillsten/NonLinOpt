@@ -1,6 +1,6 @@
 import sympy
 #from itertools import accumulate
-
+from sympy.parsing.sympy_parser import parse_expr
 greek_letters = {'a': r'\alpha', 'b': r'\beta',
                  'c': r'\gamma', 'd': r'\delta',
                  'e': r'\epsilon'}
@@ -131,7 +131,25 @@ class FeyDiag(object):
             draw_states(pos, side, trans)
             pos += 1
 
+def sub_omega(formula):
+    terms = formula.free_symbols
+    for t in terms:
+        if t.name.startswith('omega_'):
+            a, b = t.name[-2], t.name[-1]
+            ea = 'epsilon_'+a
+            eb = 'epsilon_'+b
+            formula = formula.subs(t, '(%s - %s)/hbar - i/Gamma_%s'%(eb, ea, a+b))
+    print formula
+    return formula
 
+
+
+def test():
+    om = sympy.Symbol('omega_ab')
+    ans = parse_expr('(-epsilon_a+epsilon_b)/hbar-i/Gamma_ab')
+    assert(sub_omega(om)==ans )
+
+test()
 feynman = FeyDiag(start_state=r'a',
     interactions=[('pu', 'ab', 'in', 0), ('pu', 'ab', 'in', 1),
                   ('pr', 'ba', 'out', 1), ('sig', 'ba', 'out', 0)])
@@ -145,7 +163,7 @@ formula = feynman.formula()
 feynman.draw()
 f=feynman.formula_notex()
 
-from sympy.parsing.sympy_parser import parse_expr
+
 f=feynman.formula_notex()
 f=mult_str(f)
 e =parse_expr(''.join(f)[:-1])
