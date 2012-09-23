@@ -1,5 +1,4 @@
 import sympy
-#from itertools import accumulate
 from sympy.parsing.sympy_parser import parse_expr
 
 
@@ -69,9 +68,9 @@ class FeyDiag(object):
         """
         self.start_state = start_state
         #self.om_to_trans = om_to_trans
-        self.states = set(
-            [c for ome, trans, di, side in interactions for c in trans])
-        syms = sympy.symbols(self.states)
+        #self.states = set(
+        #    [c for ome, trans, di, side in interactions for c in trans])
+        #syms = sympy.symbols(self.states)
         #for i in syms:
         #    print i
         self.interactions = interactions
@@ -134,7 +133,7 @@ class FeyDiag(object):
         plt.text(1 / 2., 0, m(initial_pop), fontsize=30,
             horizontalalignment='center')
         f = m(sympy.printing.latex(self.formula_sympy()))
-        plt.text(1 / 2., -0.75, f, fontsize=15,
+        plt.text(1 / 2., -0.75, f, fontsize=25,
             horizontalalignment='center')
         plt.axis('off')
         pos = 0
@@ -153,7 +152,7 @@ def sub_omega(formula):
             ea = 'epsilon_' + a
             eb = 'epsilon_' + b
             formula = formula.subs(t,
-                '(%s - %s)/hbar - i/Gamma_%s' % (eb, ea, a + b))
+                'omega_%s - i/Gamma_%s' % (a + b, a + b))
     return formula
 
 
@@ -201,7 +200,6 @@ def generate_nth_order(n, start=(0, 0)):
             if bra - ket == 1:
                 sol.append(prev + [('sig', '%s%s' % (bra, bra - 1), 'out', 0)])
 
-
     visit([], n, *start)
     return sol
 
@@ -210,14 +208,14 @@ def generate_nth_order(n, start=(0, 0)):
 
 
 
-l = generate_nth_order(3)
+#l = generate_nth_order(3)
 #print len(l)
-plt.figaspect(16 / 20.)
+#plt.figaspect(16 / 20.)
+#
+#F = FeyDiag('0', l[0])
+#F.draw()
 
-F = FeyDiag('0', l[0])
-F.draw()
-
-plt.show()
+#plt.show()
 
 
 def test():
