@@ -2,6 +2,7 @@ import sympy
 #from itertools import accumulate
 from sympy.parsing.sympy_parser import parse_expr
 
+
 greek_letters = {'a': r'\alpha', 'b': r'\beta',
                  'c': r'\gamma', 'd': r'\delta',
                  'e': r'\epsilon'}
@@ -22,7 +23,10 @@ def draw_states(pos, side, trans):
         fontsize=20, horizontalalignment='center')
 
 
-def draw_arrows(pos, side, direction, om):
+def draw_arrows(pos, side, direction, om, last=False):
+    ARROW_WIDTH = 0.04
+    FONTSIZE = 20
+    alpha = 0.3 if last else None
     dx, dy = 0.5, 1
     npos = pos + 1
     if isinstance(om, int):
@@ -37,15 +41,16 @@ def draw_arrows(pos, side, direction, om):
         if side == 1:
             dx *= -1
         plt.arrow(side - dx, npos - dy, dx, dy,
-            width=0.04, length_includes_head=True, lw=0)
-        plt.text(side - dx, npos - dy / 2., txt, fontsize=20,
+            width=ARROW_WIDTH, length_includes_head=True, lw=0)
+        plt.text(side - dx, npos - dy / 2., txt, fontsize=FONTSIZE,
             horizontalalignment='center')
     else:
         if side == 1:
             dx *= -1
-        plt.arrow(side, npos, -dx, dy, width=0.04, length_includes_head=True,
-            lw=0)
-        plt.text(side - dx, npos + dy / 3., txt, fontsize=20,
+        plt.arrow(side, npos, -dx, dy, width=ARROW_WIDTH,
+            length_includes_head=True,
+            lw=0, alpha=alpha)
+        plt.text(side - dx, npos + dy / 3., txt, fontsize=FONTSIZE,
             horizontalalignment='center')
 
 
@@ -89,16 +94,14 @@ class FeyDiag(object):
         All in the impulsive limit.
         """
         initial_pop = r'\rho_{%s%s}' % (
-        greek_letters[self.start_state], greek_letters[self.start_state])
+            greek_letters[self.start_state], greek_letters[self.start_state])
         left_tdms = [r'\mu_{%s}' % i[1] for i in self.left]
         right_tdms = [r'\mu_{%s}' % i[1] for i in self.right]
         return r'${0:>s}{1:>s}{2:>s}{3:>s}{4:>s}$'.format(
             str(self.count_right()), ''.join(left_tdms), initial_pop,
             ''.join(right_tdms), ''.join(self.propagators()))
 
-    def formula_notex(self):
-        from sympy.parsing.sympy_parser import parse_expr
-
+    def formula_sympy(self):
         propagators = []
         for  i, (om, trans, direction, side) in enumerate(self.interactions):
             s = r'exp(-i*omega_%s*tau_%s)' % (trans, str(i))
@@ -107,6 +110,10 @@ class FeyDiag(object):
         left_tdms = [r'mu_%s' % i[1] for i in self.left]
         right_tdms = [r'mu_%s' % i[1] for i in self.right]
         f = initial_pop + left_tdms + right_tdms + propagators[:-1]
+        f = make_sympy(f)
+        f = eq_mu(f)
+        f = sub_omega(f).simplify()
+        #print f
         return f
 
     def propagators(self):
@@ -117,21 +124,23 @@ class FeyDiag(object):
         return l
 
     def draw(self):
+        """Draws the diagram"""
         height = len(self.interactions)
         plt.vlines(0, 0, height + 1, lw=5)
         plt.vlines(1, 0, height + 1, lw=5)
         plt.xlim(-1, 2)
         plt.ylim(-1, height + 1)
-        #plt.figsize(*plt.figaspect(1))
         initial_pop = r'\rho_{%s%s}' % (self.start_state, self.start_state)
         plt.text(1 / 2., 0, m(initial_pop), fontsize=30,
             horizontalalignment='center')
-        plt.text(1 / 2., -0.75, self.formula(), fontsize=15,
+        f = m(sympy.printing.latex(self.formula_sympy()))
+        plt.text(1 / 2., -0.75, f, fontsize=15,
             horizontalalignment='center')
         plt.axis('off')
         pos = 0
         for  om, trans, direction, side in self.interactions:
-            draw_arrows(pos, side, direction, om)
+            last = pos == len(self.interactions) - 1
+            draw_arrows(pos, side, direction, om, last)
             draw_states(pos, side, trans)
             pos += 1
 
@@ -148,6 +157,15 @@ def sub_omega(formula):
     return formula
 
 
+def eq_mu(formula):
+    terms = formula.free_symbols
+    for t in terms:
+        if t.name.startswith('mu_'):
+            a, b = t.name[-2], t.name[-1]
+            formula = formula.subs(t, 'mu_' + b + a)
+    return formula
+
+
 def make_sympy(f_str):
     f_str = mult_str(f_str)
     return parse_expr(''.join(f_str)[:-1]).simplify()
@@ -157,7 +175,7 @@ def make_field(response):
     return response / sympy.Symbol('hbar')
 
 
-def generate_nth_order(n):
+def generate_nth_order(n, start=(0, 0)):
     sol = []
 
     def visit(prev, actions, bra, ket):
@@ -183,10 +201,23 @@ def generate_nth_order(n):
             if bra - ket == 1:
                 sol.append(prev + [('sig', '%s%s' % (bra, bra - 1), 'out', 0)])
 
-    visit([], n, 0, 0)
+
+    visit([], n, *start)
     return sol
 
-print generate_nth_order(3)
+#for i in range(3,15,2):
+#    print len(generate_nth_order(i))
+
+
+
+l = generate_nth_order(3)
+#print len(l)
+plt.figaspect(16 / 20.)
+
+F = FeyDiag('0', l[0])
+F.draw()
+
+plt.show()
 
 
 def test():
