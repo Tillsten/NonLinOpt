@@ -74,33 +74,34 @@ def make_sympy(f_str):
 def make_field(response):
     return response / sympy.Symbol('hbar')
 
-def generate_nth_order(n, start=(0, 0)):
+def generate_nth_order(n,start=(0,0)):
     sol = []
-    def visit(prev, actions, bra, ket):
+    def visit(prev, actions, bra=0, ket=0):
         if bra - ket - 1 > actions:
             return
-        a = actions - 1
+        a = actions - 1        
         if actions > 0:
             visit(prev[:] + [
-                (str(n - actions), '%s%s' % (bra, bra + 1), 'in', 0)], a,
+                (str(n - actions), (0,1), 0)], a,
                 bra + 1, ket)
             visit(prev[:] + [
-                (str(n - actions), '%s%s' % (ket, ket + 1), 'in', 1)], a, bra,
+                (str(n - actions), (0,1), 1)], a, bra,
                 ket + 1)
             if bra > 0:
                 visit(prev[:] + [
-                    (str(n - actions), '%s%s' % (bra, bra - 1), 'out', 0)], a,
+                    (str(n - actions), (0,-1), 0)], a,
                     bra - 1, ket)
             if ket > 0:
                 visit(prev[:] + [
-                    (str(n - actions), '%s%s' % (ket, ket - 1), 'out', 1)], a,
+                    (str(n - actions), (0,-1), 1)], a,
                     bra, ket - 1)
         elif actions == 0:
             if bra - ket == 1:
-                sol.append(prev + [('sig', '%s%s' % (bra, bra - 1), 'out', 0)])
-
+                sol.append([((0,),(0,))]+prev + [('sig', (0,-1), 0)])
+            
     visit([], n, *start)
     return sol
+    
 
 def test():
     om = sympy.Symbol('omega_ab')
@@ -169,6 +170,13 @@ def apply_delta(state, delta, side):
     else:
         return state[0], tuple(t)
 
+
+def get_trans(state, delta, side):    
+    old = state[side][delta[0]]
+    new = old+delta[1]
+    return old, new
+    
+
 def count_right(diag):
     return sum([i[-1] for i in diag[1:]])
 
@@ -181,11 +189,10 @@ def formula_sympy(diag):
         state = apply_delta(state, delta, side)
         s = r'exp(-I*omega_%s%s*tau_%s)' % (om[0],om[1], str(i))
         propagators.append(s)           
-        tdms.append('mu_%s%s'%(om[0],om[1]))
-    
+        tdms.append('mu_%s%s'%(om[0],om[1]))        
     initial_pop = [r'p_00']
+    
     f = initial_pop + tdms + propagators[:-1]
-    #print f    
     f = make_sympy(f)
     f = eq_mu(f)
     f = sub_omega(f).simplify()    
@@ -193,11 +200,14 @@ def formula_sympy(diag):
     f = f.subs('tau_1',0)
     return f*(-1)**count_right(diag)
 
-def get_trans(state, delta, side):    
-    old = state[side][delta[0]]
-    new = old+delta[1]
-    return old, new
-    
-draw(test_diag)
+#draw(test_diag)
+#print generate_nth_order(3)[2]
+#draw(generate_nth_order(3)[2])
+
+l=generate_nth_order(3)
+for i in l:
+    draw(i)
+    figure()
+        #pri
 #test()
 
