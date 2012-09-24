@@ -14,14 +14,6 @@ def m(s):
     """Puts $ around a string"""
     return r'$' + s + r'$'
 
-
-def draw_states(pos, side, trans):
-    """Draws the states"""
-    off = -0.2 if side else 0.2
-    plt.text(side + off, pos + 1, m(greek_letters[trans[-1]]),
-        fontsize=20, horizontalalignment='center')
-
-
 def draw_arrows(pos, side, direction, om, last=False):
     ARROW_WIDTH = 0.04
     FONTSIZE = 20
@@ -52,97 +44,9 @@ def draw_arrows(pos, side, direction, om, last=False):
         plt.text(side - dx, npos + dy / 3., txt, fontsize=FONTSIZE,
             horizontalalignment='center')
 
-
 def mult_str(l):
     l = map(lambda x: x + '*', l)
     return l
-
-
-class FeyDiag(object):
-    """Feynman diagramm of non-linear optics"""
-
-    def __init__(self, start_state, interactions):
-        """
-         A Feynman diagram is completely defined by the start state
-         and the interactions.
-        """
-        self.start_state = start_state
-        #self.om_to_trans = om_to_trans
-        #self.states = set(
-        #    [c for ome, trans, di, side in interactions for c in trans])
-        #syms = sympy.symbols(self.states)
-        #for i in syms:
-        #    print i
-        self.interactions = interactions
-        self.left = [i for i in self.interactions if i[-1] == 0]
-        self.right = [i for i in self.interactions if i[-1] == 1]
-
-
-    def count_right(self):
-        num = -1 ** (len(
-            [' ' for om, trans, direction, side in self.interactions if
-             side == 1]))
-        if num == -1:
-            return '-'
-        else:
-            return ''
-
-    def formula(self):
-        """
-        Prints out the formula resulting of the interactions.
-        All in the impulsive limit.
-        """
-        initial_pop = r'\rho_{%s%s}' % (
-            greek_letters[self.start_state], greek_letters[self.start_state])
-        left_tdms = [r'\mu_{%s}' % i[1] for i in self.left]
-        right_tdms = [r'\mu_{%s}' % i[1] for i in self.right]
-        return r'${0:>s}{1:>s}{2:>s}{3:>s}{4:>s}$'.format(
-            str(self.count_right()), ''.join(left_tdms), initial_pop,
-            ''.join(right_tdms), ''.join(self.propagators()))
-
-    def formula_sympy(self):
-        propagators = []
-        for  i, (om, trans, direction, side) in enumerate(self.interactions):
-            s = r'exp(-i*omega_%s*tau_%s)' % (trans, str(i))
-            propagators.append(s)
-        initial_pop = [r'p_%s%s' % (self.start_state, self.start_state)]
-        left_tdms = [r'mu_%s' % i[1] for i in self.left]
-        right_tdms = [r'mu_%s' % i[1] for i in self.right]
-        f = initial_pop + left_tdms + right_tdms + propagators[:-1]
-        f = make_sympy(f)
-        f = eq_mu(f)
-        f = sub_omega(f).simplify()
-        #print f
-        return f
-
-    def propagators(self):
-        l = []
-        for  i, (om, trans, direction, side) in enumerate(self.interactions):
-            s = r'\exp(-i\omega_{%s}\tau_%s)' % (trans, str(i))
-            l.append(s)
-        return l
-
-    def draw(self):
-        """Draws the diagram"""
-        height = len(self.interactions)
-        plt.vlines(0, 0, height + 1, lw=5)
-        plt.vlines(1, 0, height + 1, lw=5)
-        plt.xlim(-1, 2)
-        plt.ylim(-1, height + 1)
-        initial_pop = r'\rho_{%s%s}' % (self.start_state, self.start_state)
-        plt.text(1 / 2., 0, m(initial_pop), fontsize=30,
-            horizontalalignment='center')
-        f = m(sympy.printing.latex(self.formula_sympy()))
-        plt.text(1 / 2., -0.75, f, fontsize=25,
-            horizontalalignment='center')
-        plt.axis('off')
-        pos = 0
-        for  om, trans, direction, side in self.interactions:
-            last = pos == len(self.interactions) - 1
-            draw_arrows(pos, side, direction, om, last)
-            draw_states(pos, side, trans)
-            pos += 1
-
 
 def sub_omega(formula):
     terms = formula.free_symbols
@@ -152,9 +56,8 @@ def sub_omega(formula):
             ea = 'epsilon_' + a
             eb = 'epsilon_' + b
             formula = formula.subs(t,
-                'omega_%s - i/Gamma_%s' % (a + b, a + b))
+                'omega_%s - I/Gamma_%s' % (a + b, a + b))
     return formula
-
 
 def eq_mu(formula):
     terms = formula.free_symbols
@@ -164,19 +67,15 @@ def eq_mu(formula):
             formula = formula.subs(t, 'mu_' + b + a)
     return formula
 
-
 def make_sympy(f_str):
     f_str = mult_str(f_str)
     return parse_expr(''.join(f_str)[:-1]).simplify()
 
-
 def make_field(response):
     return response / sympy.Symbol('hbar')
 
-
 def generate_nth_order(n, start=(0, 0)):
     sol = []
-
     def visit(prev, actions, bra, ket):
         if bra - ket - 1 > actions:
             return
@@ -203,21 +102,6 @@ def generate_nth_order(n, start=(0, 0)):
     visit([], n, *start)
     return sol
 
-#for i in range(3,15,2):
-#    print len(generate_nth_order(i))
-
-
-
-#l = generate_nth_order(3)
-#print len(l)
-#plt.figaspect(16 / 20.)
-#
-#F = FeyDiag('0', l[0])
-#F.draw()
-
-#plt.show()
-
-
 def test():
     om = sympy.Symbol('omega_ab')
     ans = parse_expr('(-epsilon_a+epsilon_b)/hbar-i/Gamma_ab')
@@ -226,12 +110,94 @@ def test():
     f = first_order.formula_notex()
     f = make_sympy(f)
     f = sub_omega(f)
+
     e = make_field(f)
     det = sympy.integrate(e, ('tau_0', -sympy.oo, sympy.oo))
 
     sympy.pprint(det)
 
     assert(ans == sub_omega(om) )
+    
+#New format, example for a double oscilator:
+bra, ket = (0,0),(0,0)
+start_state = (bra, ket)
+#format is name, delta bra(ket), ket or bar                       
+example_interaction = ('pr',(1,1), 0) 
+example_diagramm = [start_state,
+                    (('pu'),(1,1),0), (('pu'),(1,-1), 0), 
+                    (('pr'),(1,1),0), (('pr'),(1,-1),0)]
 
+test_diag = [((0,),(0,)), (('pu'),(0,1),0), (('pu'),(0,1), 1), 
+             (('pr'),(0,1),0), (('pr'),(0,-1),0)]
+
+def draw(diag):
+    """Draws the diagram"""
+    height = len(diag)-1
+    plt.vlines(0, 0, height + 1, lw=5)
+    plt.vlines(1, 0, height + 1, lw=5)
+    plt.xlim(-1, 2)
+    plt.ylim(-1, height + 1)
+    draw_state(-1, diag[0])
+    f = m(sympy.printing.latex(formula_sympy(diag)))
+    plt.text(1 / 2., -0.75, f, fontsize=25,
+        horizontalalignment='center')    
+    plt.axis('off')
+    pos = 0
+    state = diag[0]   
+    for name, delta, side in diag[1:]:
+        last = pos == len(diag) - 2
+        state=apply_delta(state, delta, side)
+        if sum(delta) > 0: 
+            direction = 'in'
+        else: 
+            direction ='out'            
+        draw_arrows(pos, side, direction, name, last)
+        draw_state(pos, state)                
+        pos += 1
+
+def draw_state(pos, state):    
+    s1, s2 = str(state[0]).strip('(),[]'), str(state[1]).strip('(),[]')
+    plt.text(0.5, pos + 1, m(r'\left|  %s\rangle\langle%s\right|'%(s1,s2)),
+        fontsize=25, horizontalalignment='center', verticalalignment='center')
+
+def apply_delta(state, delta, side):
+    t = list(state[side])
+    idx, value = delta
+    t[idx] += value
+    if side==0:
+        return tuple(t), state[1]
+    else:
+        return state[0], tuple(t)
+
+def count_right(diag):
+    return sum([i[-1] for i in diag[1:]])
+
+def formula_sympy(diag):
+    state = diag[0]
+    propagators = []
+    tdms = []
+    for  i, (name, delta, side) in enumerate(diag[1:]):        
+        om = get_trans(state, delta, side)
+        state = apply_delta(state, delta, side)
+        s = r'exp(-I*omega_%s%s*tau_%s)' % (om[0],om[1], str(i))
+        propagators.append(s)           
+        tdms.append('mu_%s%s'%(om[0],om[1]))
+    
+    initial_pop = [r'p_00']
+    f = initial_pop + tdms + propagators[:-1]
+    #print f    
+    f = make_sympy(f)
+    f = eq_mu(f)
+    f = sub_omega(f).simplify()    
+    f = f.subs('tau_0',0)
+    f = f.subs('tau_1',0)
+    return f*(-1)**count_right(diag)
+
+def get_trans(state, delta, side):    
+    old = state[side][delta[0]]
+    new = old+delta[1]
+    return old, new
+    
+draw(test_diag)
 #test()
 
